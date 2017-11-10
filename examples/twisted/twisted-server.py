@@ -64,19 +64,25 @@ class H2Protocol(Protocol):
 
         path = headers[b':path'].lstrip(b'/')
         full_path = os.path.join(self.root, path)
+        full_path_gz = full_path + '.gz'
 
-        if not os.path.exists(full_path):
+        regular_exists = os.path.exists(full_path)
+        gzip_exists = os.path.exists(full_path_gz)
+
+        if not regular_exists and not gzip_exists:
             response_headers = (
                 (':status', '404'),
                 ('content-length', '0'),
-                ('server', 'twisted-h2'),
             )
             self.conn.send_headers(
                 stream_id, response_headers, end_stream=True
             )
             self.transport.write(self.conn.data_to_send())
         else:
-            self.sendFile(full_path, stream_id)
+            self.sendFile(
+                file_path=(full_path_gz if gzip_exists else full_path), 
+                stream_id=stream_id,
+            )
 
         return
 
@@ -91,7 +97,6 @@ class H2Protocol(Protocol):
         response_headers = [
             (':status', '200'),
             ('content-length', str(filesize)),
-            ('server', 'twisted-h2'),
             ('Access-Control-Allow-Origin', '*'),
         ]
         if content_type:
