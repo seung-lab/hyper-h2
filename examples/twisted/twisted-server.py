@@ -85,12 +85,14 @@ class H2Protocol(Protocol):
         self.transport.write(self.conn.data_to_send())
 
     def sendFile(self, file_path, stream_id):
+        print 'SEND ', file_path
         filesize = os.stat(file_path).st_size
         content_type, content_encoding = mimetypes.guess_type(file_path)
         response_headers = [
             (':status', '200'),
             ('content-length', str(filesize)),
             ('server', 'twisted-h2'),
+            ('Access-Control-Allow-Origin', '*'),
         ]
         if content_type:
             response_headers.append(('content-type', content_type))
@@ -162,6 +164,10 @@ class H2Factory(Factory):
         return H2Protocol(self.root)
 
 
+if len(sys.argv) <= 1:
+    print "Usage: python twisted-server.py DIRECTORY_PATH"
+    sys.exit()
+
 root = sys.argv[1]
 
 with open('server.crt', 'r') as f:
@@ -177,6 +183,9 @@ options = ssl.CertificateOptions(
     acceptableProtocols=[b'h2'],
 )
 
-endpoint = endpoints.SSL4ServerEndpoint(reactor, 8080, options, backlog=128)
+PORT = 1337
+endpoint = endpoints.SSL4ServerEndpoint(reactor, PORT, options, backlog=128)
 endpoint.listen(H2Factory(root))
+print "Listening on port %s. Use https://localhost:%s/" % (PORT, PORT)
 reactor.run()
+print "Done."
