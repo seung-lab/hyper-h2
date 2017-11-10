@@ -5,6 +5,7 @@ twisted-server.py
 
 A fully-functional HTTP/2 server written for Twisted.
 """
+from cStringIO import StringIO
 import functools
 import mimetypes
 import os
@@ -69,7 +70,27 @@ class H2Protocol(Protocol):
         regular_exists = os.path.exists(full_path)
         gzip_exists = os.path.exists(full_path_gz)
 
-        if not regular_exists and not gzip_exists:
+        if os.path.isdir(full_path):
+            links = []
+            for item in os.listdir(full_path):
+                links.append(
+                    "<a href='/{}'>{}</a>".format(
+                        os.path.join(path, item), 
+                        item
+                    )
+                )
+            resp = '<br>'.join(links)
+            response_headers = (
+                (':status', '200'),
+                ('content-length', str(len(resp))),
+            )
+            print "LISTING", full_path
+            self.conn.send_headers(
+                stream_id, response_headers, end_stream=False
+            )
+            self._send_file(StringIO(resp), stream_id)
+
+        elif not regular_exists and not gzip_exists:
             response_headers = (
                 (':status', '404'),
                 ('content-length', '0'),
